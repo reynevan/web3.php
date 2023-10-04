@@ -191,9 +191,25 @@ class Ethabi
         return $this->decodeParameters([$type], $param)[0];
     }
 
+    private function fetchTypes($outputs)
+    {
+        $types = [];
+        foreach ($outputs as $output) {
+            if (!isset($output['type'] )) {
+                continue;
+            }
+            if ($output['type'] === 'tuple') {
+                $types = array_merge($types, $this->fetchTypes($output['components']));
+            } else {
+                $types[] = $output['type'];
+            }
+        }
+        return $types;
+    }
+
     /**
      * decodeParameters
-     * 
+     *
      * @param stdClass|array $type
      * @param string $param
      * @return string
@@ -203,20 +219,13 @@ class Ethabi
         if (!is_string($param)) {
             throw new InvalidArgumentException('The type or param to decodeParameters must be string.');
         }
-
         // change json to array
         if ($types instanceof stdClass && isset($types->outputs)) {
             $types = Utils::jsonToArray($types, 2);
         }
         if (is_array($types) && isset($types['outputs'])) {
             $outputTypes = $types;
-            $types = [];
-
-            foreach ($outputTypes['outputs'] as $output) {
-                if (isset($output['type'])) {
-                    $types[] = $output['type'];
-                }
-            }
+            $types = $this->fetchTypes($outputTypes['outputs']);
         }
         $typesLength = count($types);
         $solidityTypes = $this->getSolidityTypes($types);
